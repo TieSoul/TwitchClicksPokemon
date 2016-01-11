@@ -1,0 +1,33 @@
+div {
+    font: 10pt Arial;
+}
+
+#teamanarchy, #teamdemocracy {
+    border: 1px solid black;
+    overflow: hidden;
+    margin: 5px;
+}
+
+#main {
+    width: 68%;
+    float: left;
+}
+
+#resourceview {
+    float: left;
+    border: 1px solid black;
+    width: 30%;
+}
+
+.fossil {
+    border: 1px solid black;
+    border-radius: 5px;
+    float: left;
+    width: 150px;
+    background: #492;
+    margin: 5px;
+}
+
+#click {
+    cursor: pointer;
+}
