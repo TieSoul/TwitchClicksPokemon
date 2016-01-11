@@ -50,7 +50,7 @@ function init() {
         if (fossil) {
             var cost = {};
             for (var rs in fossil.baseCost) {
-                cost[rs] = fossil.baseCost[rs] * Math.pow(1.1, fossil.amount);
+                cost[rs] = Math.floor(fossil.baseCost[rs] * Math.pow(1.1, fossil.amount));
             }
             return cost;
         }
