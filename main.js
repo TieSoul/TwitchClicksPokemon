@@ -286,6 +286,7 @@ function init() {
                 Game.Upgrades[upg].time -= dt / 1000;
                 if (Game.Upgrades[upg].time <= 0) {
                     Game.Upgrades[upg].unlocked = false;
+                    Game.Upgrades[upg].bought = false;
                     Game.notify({text: Game.Upgrades[upg].name + ' was locked.'});
                     Game.updateEverything();
                 }
