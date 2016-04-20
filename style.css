@@ -2,10 +2,11 @@ div {
     font: 10pt Arial;
 }
 
-#teamanarchy, #teamdemocracy {
+#teamanarchy, #teamdemocracy, #upgradeshop {
     border: 1px solid black;
     overflow: hidden;
     margin: 5px;
+    min-height: 50px;
 }
 
 #main {
@@ -19,7 +20,7 @@ div {
     width: 30%;
 }
 
-.fossil {
+.fossil, .upgrade {
     border: 1px solid black;
     border-radius: 5px;
     float: left;
@@ -30,4 +31,8 @@ div {
 
 #click {
     cursor: pointer;
+}
+
+.notifyjs-metro-base .text-wrapper {
+    margin-left: 10px;
 }

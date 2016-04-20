@@ -28,6 +28,24 @@ function init() {
         democh.amount = democh.amount || 0;
     }
 
+    Game.AllFossils = [];
+    for (var name in TEAMANARCHY) {
+        Game.AllFossils.push(name);
+    }
+    for (var name in TEAMDEMOCRACY) {
+        Game.AllFossils.push(name);
+    }
+
+    Game.Upgrades = Game.Upgrades || UPGRADES;
+    for (var name in UPGRADES) {
+        var upgrade = Game.Upgrades[name] = Game.Upgrades[name] || UPGRADES[name];
+        for (var attr in UPGRADES[name]) {
+            upgrade[attr] = UPGRADES[name][attr];
+        }
+        upgrade.unlocked = upgrade.unlocked || false;
+        upgrade.bought = upgrade.bought || false;
+    }
+
     Game.updateResources = function () {
         var resourceDiv = document.getElementById('resourceview');
         var str = '<h1>Resources</h1>';
@@ -54,6 +72,10 @@ function init() {
             }
             return cost;
         }
+        if (Game.Upgrades[name]) {
+            var upgrade = Game.Upgrades[name];
+            return upgrade.price;
+        }
     };
 
     Game.canAfford = function(name) {
@@ -66,9 +88,10 @@ function init() {
 
     Game.costToHTML = function(name) {
         var cost = Game.getCost(name);
+        if (JSON.stringify(cost) == '{}') return "- FREE <br>";
         var str = '';
         for (var rs in cost) {
-            str += '- ' + beautify(cost[rs]) + ' ' + Game.Resources[rs].name + '<br />';
+            str += '- ' + beautify(cost[rs]) + ' ' + Game.Resources[rs].name + '<br>';
         }
         return str;
     };
@@ -77,32 +100,32 @@ function init() {
 
     Game.updateFossils = function () {
         var anarchDiv = document.getElementById('teamanarchy');
-        var str = '';
+        var str = '<b>Team Anarchy</b><br>';
         for (var anarchName in Game.TeamAnarchy) {
             var anarch = Game.TeamAnarchy[anarchName];
             if (anarch.unlocked) {
                 str += '<div class="fossil">' +
-                           '<b>' + anarch.name + '</b><br />' +
-                           'Amount: ' + beautify(anarch.amount) + '<br />' +
+                           '<b>' + anarch.name + '</b><br>' +
+                           'Amount: ' + beautify(anarch.amount) + '<br>' +
                            Game.costToHTML(anarchName) +
-                           '<a href="#" onclick="Game.buyFossil(\'' + anarchName + '\')">Buy</a><br />' +
-                           Game.getRawProduction(anarchName) + ' Inputs/s on average per ' + anarch.name + '<br />' +
+                           '<a href="#" onclick="Game.buyFossil(\'' + anarchName + '\')">Buy</a><br>' +
+                           beautify(Game.getRawProduction(anarchName)) + ' Inputs/s on average per ' + anarch.name + '<br>' +
                            anarch.desc +
                        '</div>';
             }
         }
         anarchDiv.innerHTML = str;
         var demochDiv = document.getElementById('teamdemocracy');
-        str = '';
+        str = '<b>Team Democracy</b><br>';
         for (var demochName in Game.TeamDemocracy) {
             var democh = Game.TeamDemocracy[demochName];
             if (democh.unlocked) {
                 str += '<div class="fossil">' +
-                    '<b>' + democh.name + '</b><br />' +
-                    'Amount: ' + beautify(democh.amount) + '<br />' +
+                    '<b>' + democh.name + '</b><br>' +
+                    'Amount: ' + beautify(democh.amount) + '<br>' +
                     Game.costToHTML(demochName) +
-                    '<a href="#" onclick="Game.buyFossil(\'' + demochName + '\')">Buy</a><br />' +
-                    Game.getRawProduction(demochName) + ' Inputs/30s on average per ' + democh.name + '<br />' +
+                    '<a href="#" onclick="Game.buyFossil(\'' + demochName + '\')">Buy</a><br>' +
+                    beautify(Game.getRawProduction(demochName)) + ' Inputs/30s on average per ' + democh.name + '<br>' +
                     democh.desc +
                     '</div>';
             }
@@ -118,6 +141,12 @@ function init() {
             fossil = Game.TeamDemocracy[fossilName];
         }
         var production = fossil.baseIncome;
+        for (var upg in Game.Upgrades) {
+            var upgrade = Game.Upgrades[upg];
+            if (upgrade.onProductionMultiplier && upgrade.bought) {
+                production *= upgrade.onProductionMultiplier(fossilName);
+            }
+        }
 
         return production;
     };
@@ -152,6 +181,10 @@ function init() {
         Game.updateResources();
     };
 
+    Game.notify = function (notification) {
+        $.notify(notification, {style: 'metro', className: 'black', position: "bottom right"})
+    };
+
     Game.AwardResource = function (resourceName, amount) {
         Game.Resources[resourceName].amount += amount;
         if (Game.Resources[resourceName].amount <= 0) Game.Resources[resourceName].amount = 0;
@@ -166,6 +199,77 @@ function init() {
     Game.lastUpdate = Date.now();
     Game.demoTimer = 30;
 
+    Game.donger = function () {
+        var rand = Math.random();
+        var dongerRewardText;
+        if (rand < 0.4) {
+            Game.awardTemp('start9');
+            dongerRewardText = 'Start9: Multiplies Anarchy production by 6 for ' + Game.Upgrades['start9'].duration + ' seconds.';
+        } else {
+            dongerRewardText = 'Input Storm: Instant inputs! yay!';
+            Game.AwardResource('inputs', Game.inputStormAmount());
+        }
+        Game.notify({title: 'ヽ༼ຈل͜ຈ༽ﾉ', text: 'Dongers gave you: ' + dongerRewardText});
+        Game.updateEverything();
+    };
+
+    Game.getTotalProfit = function () {
+        var p = 0;
+        for (var i = 0; i < Game.AllFossils.length; i++) {
+            var fossilName = Game.AllFossils[i];
+            if (Game.TeamAnarchy[fossilName]) p += Game.getProduction(fossilName);
+            else p += Game.getProduction(fossilName)/30;
+        }
+        return p;
+    };
+
+    Game.inputStormAmount = function () {
+        return Game.getTotalProfit() * 300;
+    };
+
+    Game.awardTemp = function (temporaryUpgrade) {
+        Game.Upgrades[temporaryUpgrade].unlocked = true;
+        Game.Upgrades[temporaryUpgrade].bought = true;
+        Game.Upgrades[temporaryUpgrade].time = Game.Upgrades[temporaryUpgrade].duration;
+    };
+
+    Game.updateEverything = function() {
+        Game.updateFossils();
+        Game.updateResources();
+        Game.updateUpgrades();
+    };
+
+    Game.updateUpgrades = function() {
+        var upgradeDiv = document.getElementById('upgradeshop');
+        var s = "<b>Upgrade Shop</b><br>";
+        for (var upgradeName in Game.Upgrades) {
+            var upgrade = Game.Upgrades[upgradeName];
+            if (upgrade.unlocked && !upgrade.bought) {
+                s += "<div class=\"upgrade\">" +
+                    "<b>" + upgrade.name + "</b><br>" +
+                    (typeof(upgrade.desc) == "function" ? upgrade.desc() : upgrade.desc) + "<br>" +
+                    Game.costToHTML(upgradeName) +
+                    "<a href=\"#\" onclick=\"Game.buyUpgrade('" + upgradeName + "')\">Buy</a>" +
+                    "</div>";
+            }
+        }
+        if (s != upgradeDiv.innerHTML){
+            upgradeDiv.innerHTML = s;
+        }
+    };
+
+    Game.buyUpgrade = function(upgradeName) {
+        if (Game.canAfford(upgradeName)) {
+            var upgrade = Game.Upgrades[upgradeName];
+            upgrade.bought = true;
+            var cost = Game.getCost(upgradeName);
+            for (var rs in cost) {
+                Game.Resources[rs].amount -= cost[rs];
+            }
+            if (upgrade.onBuy) upgrade.onBuy();
+        }
+    };
+
     Game.tick = function () {
         var now = Date.now();
         var dt = now - Game.lastUpdate;
@@ -176,6 +280,20 @@ function init() {
             for (var demoName in Game.TeamDemocracy) {
                 Game.AwardResource('inputs', (Math.random() * 0.4 + 1) * Game.getProduction(demoName));
             }
+        }
+        for (var upg in Game.Upgrades) {
+            if (Game.Upgrades[upg].time && Game.Upgrades[upg].time > 0) {
+                Game.Upgrades[upg].time -= dt / 1000;
+                if (Game.Upgrades[upg].time <= 0) {
+                    Game.Upgrades[upg].unlocked = false;
+                    Game.notify({text: Game.Upgrades[upg].name + ' was locked.'});
+                    Game.updateEverything();
+                }
+            }
+            if (Game.Upgrades[upg].unlock && !Game.Upgrades[upg].unlocked) {
+                Game.Upgrades[upg].unlocked = Game.Upgrades[upg].unlock();
+            }
+            if (Game.Upgrades[upg].onTick) Game.Upgrades[upg].onTick(dt);
         }
 
         var demoTimerDiv = document.getElementById('democracypayout');
@@ -190,16 +308,17 @@ function init() {
             }
             Game.AwardResource('inputs', Game.getProduction(anarchName) * (dt / 1000) * mod);
         }
+        Game.updateUpgrades();
     };
 }
 
 function save () {
-    localStorage.setItem('TwitchClicksPokemon', btoa(JSON.stringify(Game)));
+    localStorage.setItem('TwitchClicksPokemon', JSON.stringify(Game));
 }
 
 function load () {
     try {
-        var loadgame = JSON.parse(atob(localStorage.getItem('TwitchClicksPokemon')));
+        var loadgame = JSON.parse(localStorage.getItem('TwitchClicksPokemon'));
     } catch (e) {
         // do nothing
     }
@@ -215,6 +334,6 @@ function beautify (num) {
 window.onload = function () {
     load();
     init();
-    setInterval(save, 2000);
-    setInterval(Game.tick, 100)
+    setInterval(save, 20000);
+    setInterval(Game.tick, 100);
 };
